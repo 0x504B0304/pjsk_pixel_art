@@ -1,0 +1,6 @@
+Image conversion behavior is adapted from MaaAssistantArknights PixelPaintHelper.cs,
+Copyright MaaAssistantArknights contributors, licensed under AGPL-3.0.
+The standalone application is also distributed under AGPL-3.0. See LICENSE.
+
+A save-button reference image is bundled solely for editor recognition. Game
+screenshots used by instrumentation tests are not packaged in the application APK.

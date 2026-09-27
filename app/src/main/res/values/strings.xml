@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_description">在 PJSK 拼豆页面截屏校验并绘制已选择的图案；仅在手动启动绘制后操作。</string>
+</resources>
