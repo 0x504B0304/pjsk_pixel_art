@@ -7,6 +7,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.ImageDecoder
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -62,71 +63,110 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = Ui.PAGE_BG
+        window.insetsController?.setSystemBarsAppearance(
+            android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+            android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+        )
         val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val left = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(12))
+            background = Ui.card(this@MainActivity)
+            elevation = dp(2).toFloat()
+            setPadding(dp(18), dp(16), dp(18), dp(16))
         }
         val right = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            background = Ui.card(this@MainActivity)
+            elevation = dp(2).toFloat()
             setPadding(dp(18), dp(14), dp(18), dp(20))
         }
+        val page = LinearLayout(this).apply {
+            background = Ui.pageBackground()
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+        }
         if (landscape) {
-            val columns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            columns.addView(left, LinearLayout.LayoutParams(dp(310), ViewGroup.LayoutParams.MATCH_PARENT))
-            columns.addView(ScrollView(this).apply { addView(right) }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
-            setContentView(columns)
+            page.orientation = LinearLayout.HORIZONTAL
+            val leftParams = LinearLayout.LayoutParams(dp(320), ViewGroup.LayoutParams.MATCH_PARENT).apply {
+                marginEnd = dp(12)
+            }
+            page.addView(left, leftParams)
+            page.addView(ScrollView(this).apply { addView(right) }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+            setContentView(page)
         } else {
-            val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-            content.addView(left)
-            content.addView(right)
-            setContentView(ScrollView(this).apply { addView(content) })
+            page.orientation = LinearLayout.VERTICAL
+            page.addView(left, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                bottomMargin = dp(12)
+            })
+            page.addView(right, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            setContentView(ScrollView(this).apply {
+                addView(page, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            })
         }
 
-        left.addView(TextView(this).apply {
+        val titleRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+        val accentDot = android.view.View(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Ui.ACCENT)
+            }
+        }
+        titleRow.addView(accentDot, LinearLayout.LayoutParams(dp(10), dp(10)).apply { marginEnd = dp(8) })
+        titleRow.addView(TextView(this).apply {
             text = "PJSK 拼豆绘制"
-            textSize = 22f
-            setTextColor(Color.rgb(26, 77, 72))
+            textSize = 21f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(Ui.TEXT_PRIMARY)
         })
-        left.addView(Button(this).apply {
-            text = "选择图片"
+        left.addView(titleRow)
+        left.addView(TextView(this).apply {
+            text = "导入图片，生成 24×24 拼豆图案"
+            textSize = 12f
+            setTextColor(Ui.TEXT_SECONDARY)
+            setPadding(dp(18), dp(2), 0, 0)
+        })
+        Ui.spacer(left, this, 12)
+        Ui.addFullWidth(left, Ui.primaryButton(this, "选择图片").apply {
             setOnClickListener { chooseImage() }
-        })
+        }, this, topMargin = 0)
+        Ui.spacer(left, this, 12)
         val previews = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         sourcePreview = previewColumn(previews, "调色原图", landscape)
         beadPreview = previewColumn(previews, "拼豆预览", landscape)
+        (previews.getChildAt(0).layoutParams as LinearLayout.LayoutParams).marginEnd = dp(8)
         left.addView(previews)
-        right.addView(Button(this).apply {
-            text = "开启无障碍服务"
+        Ui.addFullWidth(right, Ui.secondaryButton(this, "开启无障碍服务").apply {
             setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-        })
-        start = Button(this).apply {
-            text = "开始绘制并保存"
+        }, this, topMargin = 0)
+        start = Ui.primaryButton(this, "开始绘制并保存").apply {
             isEnabled = false
-            backgroundTintList = ColorStateList(
-                arrayOf(intArrayOf(android.R.attr.state_enabled), intArrayOf()),
-                intArrayOf(Color.rgb(31, 124, 101), Color.rgb(210, 216, 214)),
-            )
-            setTextColor(ColorStateList(
-                arrayOf(intArrayOf(android.R.attr.state_enabled), intArrayOf()),
-                intArrayOf(Color.WHITE, Color.rgb(91, 99, 96)),
-            ))
             setOnClickListener { beginPainting() }
         }
-        right.addView(start)
-        right.addView(Button(this).apply {
-            text = "在游戏中悬浮控制"
+        Ui.addFullWidth(right, start, this)
+        Ui.addFullWidth(right, Ui.secondaryButton(this, "在游戏中悬浮控制").apply {
             setOnClickListener { openFloatingControls() }
-        })
-        progress = TextView(this).apply { textSize = 16f }
-        status = TextView(this).apply { textSize = 15f }
-        right.addView(progress)
-        right.addView(status)
-        right.addView(TextView(this).apply { text = "画面适配" })
+        }, this)
+        progress = TextView(this).apply {
+            textSize = 14f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(Ui.ACCENT_DARK)
+        }
+        status = TextView(this).apply {
+            textSize = 13f
+            setTextColor(Ui.TEXT_SECONDARY)
+        }
+        Ui.addFullWidth(right, progress, this, topMargin = 10)
+        Ui.addFullWidth(right, status, this, topMargin = 2)
+        Ui.addFullWidth(right, Ui.divider(this), this, topMargin = 14)
+        Ui.addFullWidth(right, Ui.sectionHeader(this, "画面适配"), this, topMargin = 12)
         fit = spinner(arrayOf("裁切铺满", "完整装入", "拉伸"), right)
-        right.addView(TextView(this).apply { text = "颜色处理" })
+        Ui.addFullWidth(right, Ui.sectionHeader(this, "颜色处理"), this, topMargin = 12)
         dither = spinner(arrayOf("插画优先", "不抖动", "照片抖动", "柔和抖动"), right)
-        right.addView(TextView(this).apply { text = "原图调色" })
+        Ui.addFullWidth(right, Ui.divider(this), this, topMargin = 14)
+        Ui.addFullWidth(right, Ui.sectionHeader(this, "原图调色"), this, topMargin = 12)
         brightness = slider("亮度", right)
         contrast = slider("对比度", right)
         saturation = slider("饱和度", right)
@@ -134,8 +174,7 @@ class MainActivity : Activity() {
         hue = slider("色相", right, -180, 180, 0)
         highlights = slider("高光", right, -100, 100, 0)
         shadows = slider("阴影", right, -100, 100, 0)
-        right.addView(Button(this).apply {
-            text = "重置调色"
+        Ui.addFullWidth(right, Ui.secondaryButton(this, "重置调色").apply {
             setOnClickListener {
                 brightness.progress = 100
                 contrast.progress = 100
@@ -146,12 +185,13 @@ class MainActivity : Activity() {
                 shadows.progress = 100
                 schedulePreview()
             }
-        })
+        }, this, topMargin = 10)
         paintWhite = Switch(this).apply {
             text = "白色也上色"
+            Ui.styleSwitch(this, this@MainActivity)
             setOnCheckedChangeListener { _, _ -> if (!syncingControls) schedulePreview() }
         }
-        right.addView(paintWhite)
+        Ui.addFullWidth(right, paintWhite, this, topMargin = 6)
 
         val selectionListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
@@ -348,15 +388,22 @@ class MainActivity : Activity() {
 
     private fun spinner(items: Array<String>, parent: LinearLayout): Spinner = Spinner(this).apply {
         adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, items)
-        parent.addView(this)
+        Ui.styleSpinner(this, this@MainActivity)
+        Ui.addFullWidth(parent, this, this@MainActivity, topMargin = 6)
     }
 
     private fun previewColumn(parent: LinearLayout, label: String, landscape: Boolean): ImageView {
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        column.addView(TextView(this).apply { text = label })
+        column.addView(TextView(this).apply {
+            text = label
+            textSize = 12f
+            setTextColor(Ui.TEXT_SECONDARY)
+            setPadding(0, 0, 0, dp(4))
+        })
         val image = ImageView(this).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
-            setBackgroundColor(0xffeeeeee.toInt())
+            background = Ui.previewBackground(this@MainActivity)
+            clipToOutline = true
         }
         column.addView(image, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(if (landscape) 160 else 190)))
         parent.addView(column, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
@@ -364,11 +411,16 @@ class MainActivity : Activity() {
     }
 
     private fun slider(label: String, parent: LinearLayout, minimum: Int = 0, maximum: Int = 200, neutral: Int = 100): SeekBar {
-        val title = TextView(this).apply { text = "$label $neutral${if (minimum == 0) "%" else ""}" }
-        parent.addView(title)
+        val title = TextView(this).apply {
+            text = "$label $neutral${if (minimum == 0) "%" else ""}"
+            textSize = 13f
+            setTextColor(Ui.TEXT_SECONDARY)
+        }
+        Ui.addFullWidth(parent, title, this, topMargin = 10)
         return SeekBar(this).apply {
             max = maximum - minimum
             progress = neutral - minimum
+            Ui.styleSeekBar(this)
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, value: Int, fromUser: Boolean) {
                     title.text = "$label ${value + minimum}${if (minimum == 0) "%" else ""}"
@@ -377,7 +429,7 @@ class MainActivity : Activity() {
                 override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
                 override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
             })
-            parent.addView(this)
+            Ui.addFullWidth(parent, this, this@MainActivity, topMargin = 2)
         }
     }
 

@@ -359,20 +359,37 @@ class PainterService : AccessibilityService() {
 
     private fun showStopButton() {
         if (overlay != null) return
+        val density = resources.displayMetrics.density
+        fun d(value: Int) = (density * value).toInt()
         val button = Button(this).apply {
-            text = "停止"
+            text = "停止绘制"
+            textSize = 14f
+            isAllCaps = false
+            setTextColor(android.graphics.Color.WHITE)
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            val bg = android.graphics.drawable.GradientDrawable().apply {
+                setColor(android.graphics.Color.rgb(214, 72, 72))
+                cornerRadius = d(20).toFloat()
+            }
+            background = android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(android.graphics.Color.argb(70, 255, 255, 255)), bg, null)
+            stateListAnimator = null
+            minWidth = 0
+            minHeight = 0
+            setPadding(d(18), 0, d(18), 0)
+            elevation = d(6).toFloat()
             setOnClickListener { requestStop() }
         }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            d(40),
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 8
-            y = 8
+            x = 12
+            y = 12
         }
         (getSystemService(WINDOW_SERVICE) as WindowManager).addView(button, params)
         overlay = button

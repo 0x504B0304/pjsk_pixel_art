@@ -1,10 +1,12 @@
 package dev.pjsk.beadpainter
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
@@ -104,12 +106,11 @@ class FloatingControls(private val service: PainterService) {
 
     private fun showBubble() {
         hide()
-        val bubble = Button(service).apply {
-            text = "拼豆"
+        val bubble = Ui.bubbleButton(service, "拼豆").apply {
             contentDescription = "展开拼豆控制"
             setOnClickListener { showPanel() }
         }
-        add(bubble, WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT)
+        add(bubble, dp(56), dp(56))
         draggable(bubble) { showPanel() }
     }
 
@@ -120,34 +121,32 @@ class FloatingControls(private val service: PainterService) {
         val height = min(dp(590), screen.heightPixels - dp(56))
         val root = LinearLayout(service).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(8), dp(12), dp(10))
+            setPadding(dp(14), dp(8), dp(14), dp(12))
             background = GradientDrawable().apply {
-                setColor(Color.rgb(249, 251, 250))
-                cornerRadius = dp(6).toFloat()
-                setStroke(dp(1), Color.rgb(182, 202, 198))
+                setColor(Color.rgb(250, 252, 251))
+                cornerRadius = dp(16).toFloat()
+                setStroke(dp(1), Ui.DIVIDER)
             }
-            elevation = dp(8).toFloat()
+            elevation = dp(10).toFloat()
         }
         val header = LinearLayout(service).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val accentDot = View(service).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Ui.ACCENT)
+            }
+        }
+        header.addView(accentDot, LinearLayout.LayoutParams(dp(8), dp(8)).apply { marginEnd = dp(6) })
         val title = TextView(service).apply {
             text = "拼豆绘制"
             textSize = 17f
-            setTextColor(Color.rgb(35, 71, 66))
-            setPadding(dp(5), dp(8), 0, dp(8))
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(Ui.TEXT_PRIMARY)
+            setPadding(0, dp(8), 0, dp(8))
         }
         header.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        header.addView(Button(service).apply {
-            text = "−"
-            contentDescription = "收起悬浮控制"
-            tooltipText = contentDescription
-            setOnClickListener { showBubble() }
-        }, LinearLayout.LayoutParams(dp(42), ViewGroup.LayoutParams.WRAP_CONTENT))
-        header.addView(Button(service).apply {
-            text = "×"
-            contentDescription = "关闭悬浮控制"
-            tooltipText = contentDescription
-            setOnClickListener { service.closeFloatingControls() }
-        }, LinearLayout.LayoutParams(dp(42), ViewGroup.LayoutParams.WRAP_CONTENT))
+        header.addView(headerButton("−", "收起悬浮控制") { showBubble() })
+        header.addView(headerButton("×", "关闭悬浮控制") { service.closeFloatingControls() })
         root.addView(header)
         draggable(title)
 
@@ -156,21 +155,24 @@ class FloatingControls(private val service: PainterService) {
         targetPreview = previewColumn(previews, "拼豆预览")
         root.addView(previews)
         status = TextView(service).apply {
-            textSize = 13f
-            setTextColor(Color.rgb(66, 80, 78))
+            textSize = 12f
+            setTextColor(Ui.TEXT_SECONDARY)
             maxLines = 2
+            setPadding(0, dp(4), 0, dp(4))
         }
         root.addView(status)
         val scroll = ScrollView(service)
         val controls = LinearLayout(service).apply { orientation = LinearLayout.VERTICAL }
         scroll.addView(controls)
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        controls.addView(Button(service).apply {
-            text = "选择图片"
+        Ui.addFullWidth(controls, Ui.secondaryButton(service, "选择图片").apply {
             setOnClickListener { service.pickImageFromOverlay() }
-        })
+        }, service, topMargin = 2)
+        Ui.addFullWidth(controls, Ui.sectionHeader(service, "画面适配"), service, topMargin = 10)
         fit = spinner(controls, arrayOf("裁切铺满", "完整装入", "拉伸"))
+        Ui.addFullWidth(controls, Ui.sectionHeader(service, "颜色处理"), service, topMargin = 10)
         dither = spinner(controls, arrayOf("插画优先", "不抖动", "照片抖动", "柔和抖动"))
+        Ui.addFullWidth(controls, Ui.sectionHeader(service, "原图调色"), service, topMargin = 12)
         brightness = slider(controls, "亮度", 0, 200, 100)
         contrast = slider(controls, "对比度", 0, 200, 100)
         saturation = slider(controls, "饱和度", 0, 200, 100)
@@ -178,8 +180,7 @@ class FloatingControls(private val service: PainterService) {
         hue = slider(controls, "色相", -180, 180, 0)
         highlights = slider(controls, "高光", -100, 100, 0)
         shadows = slider(controls, "阴影", -100, 100, 0)
-        controls.addView(Button(service).apply {
-            text = "重置调色"
+        Ui.addFullWidth(controls, Ui.secondaryButton(service, "重置调色").apply {
             setOnClickListener {
                 syncing = true
                 brightness?.progress = 100
@@ -192,21 +193,43 @@ class FloatingControls(private val service: PainterService) {
                 syncing = false
                 scheduleRecalculate()
             }
-        })
+        }, service, topMargin = 8)
         paintWhite = Switch(service).apply {
             text = "白色也上色"
+            Ui.styleSwitch(this, service)
             setOnCheckedChangeListener { _, _ -> if (!syncing) scheduleRecalculate() }
         }
-        controls.addView(paintWhite)
-        start = Button(service).apply {
-            text = "开始绘制并保存"
+        Ui.addFullWidth(controls, paintWhite!!, service, topMargin = 4)
+        start = Ui.primaryButton(service, "开始绘制并保存").apply {
             setOnClickListener { service.startFromOverlay() }
         }
-        root.addView(start)
+        Ui.addFullWidth(root, start!!, service, topMargin = 8)
         add(root, width, height)
         syncWorkspace()
         handler.post(refresh)
     }
+
+    private fun headerButton(symbol: String, description: String, onClick: () -> Unit): Button =
+        Button(service).apply {
+            text = symbol
+            textSize = 16f
+            isAllCaps = false
+            setTextColor(Ui.TEXT_SECONDARY)
+            contentDescription = description
+            tooltipText = description
+            val bg = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.rgb(238, 244, 242))
+            }
+            background = RippleDrawable(ColorStateList.valueOf(Color.argb(50, 23, 120, 99)), bg, null)
+            stateListAnimator = null
+            minWidth = 0
+            minHeight = 0
+            minimumWidth = 0
+            minimumHeight = 0
+            setOnClickListener { onClick() }
+            layoutParams = LinearLayout.LayoutParams(dp(34), dp(34)).apply { marginStart = dp(6) }
+        }
 
     private fun add(view: View, width: Int, height: Int) {
         val screen = service.resources.displayMetrics
@@ -268,19 +291,28 @@ class FloatingControls(private val service: PainterService) {
 
     private fun previewColumn(parent: LinearLayout, label: String): ImageView {
         val column = LinearLayout(service).apply { orientation = LinearLayout.VERTICAL }
-        column.addView(TextView(service).apply { text = label; textSize = 12f })
+        column.addView(TextView(service).apply {
+            text = label
+            textSize = 11f
+            setTextColor(Ui.TEXT_SECONDARY)
+            setPadding(0, 0, 0, dp(2))
+        })
         val image = ImageView(service).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
-            setBackgroundColor(Color.rgb(237, 240, 239))
+            background = Ui.previewBackground(service)
+            clipToOutline = true
         }
         column.addView(image, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64)))
-        parent.addView(column, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val params = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        if (parent.childCount > 0) params.marginStart = dp(6)
+        parent.addView(column, params)
         return image
     }
 
     private fun spinner(parent: LinearLayout, items: Array<String>): Spinner = Spinner(service).apply {
         adapter = ArrayAdapter(service, android.R.layout.simple_spinner_dropdown_item, items)
-        parent.addView(this)
+        Ui.styleSpinner(this, service)
+        Ui.addFullWidth(parent, this, service, topMargin = 4)
         onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
                 if (!syncing) scheduleRecalculate()
@@ -290,11 +322,16 @@ class FloatingControls(private val service: PainterService) {
     }
 
     private fun slider(parent: LinearLayout, label: String, minimum: Int, maximum: Int, neutral: Int): SeekBar {
-        val title = TextView(service).apply { text = "$label $neutral${if (minimum == 0) "%" else ""}"; textSize = 13f }
-        parent.addView(title)
+        val title = TextView(service).apply {
+            text = "$label $neutral${if (minimum == 0) "%" else ""}"
+            textSize = 12f
+            setTextColor(Ui.TEXT_SECONDARY)
+        }
+        Ui.addFullWidth(parent, title, service, topMargin = 8)
         return SeekBar(service).apply {
             max = maximum - minimum
             progress = neutral - minimum
+            Ui.styleSeekBar(this)
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                     title.text = "$label ${progress + minimum}${if (minimum == 0) "%" else ""}"
@@ -303,7 +340,7 @@ class FloatingControls(private val service: PainterService) {
                 override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
                 override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
             })
-            parent.addView(this)
+            Ui.addFullWidth(parent, this, service, topMargin = 0)
         }
     }
 
